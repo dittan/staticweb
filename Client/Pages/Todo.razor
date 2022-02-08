@@ -1,0 +1,104 @@
+﻿@page "/todo"
+@using BlazorApp.Shared.Models
+@inject HttpClient Http
+
+<PageTitle>Todo</PageTitle>
+
+<div class="align-items-center d-flex justify-content-center">
+    <div class="card bg-light mb-3">
+        <div class="input-group mb-3">
+            <input type="text" @bind="newTodo" class="form-control" placeholder="Add your todo!" aria-label="Add your todo!" aria-describedby="basic-addon2">
+            <div class="input-group-append">
+                <button class="btn btn-primary" @onclick="CreateTodo" type="button">Add</button>
+            </div>
+        </div>
+        <div class="card-body">
+            <ul class="list-group">
+                @foreach (var todoItem in todoItems)
+                {
+                    <li class="list-group-item">
+                        <input type="checkbox" checked="@todoItem.IsCompleted" @onchange="(e) => UpdateTodo(todoItem, e)"/>
+                        <input @bind="todoItem.Title" />
+                        <button @onclick="(() => DeleteTodo(todoItem.Id))" class="btn btn-danger">x</button>
+                    </li>
+                }
+            </ul>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<TodoItem> todoItems = new List<TodoItem>();
+    private string? newTodo;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            todoItems = await Http.GetFromJsonAsync<List<TodoItem>>("/api/v1/todo/get") ?? new List<TodoItem>();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.ToString());
+        }
+    }
+
+    private async Task CreateTodo()
+    {
+        if (!string.IsNullOrWhiteSpace(newTodo))
+        {
+            try
+            {
+                TodoItem newTodoItem = new TodoItem()
+                {
+                    Title = newTodo,
+                    IsCompleted = false
+                };
+
+                await Http.PostAsJsonAsync("/api/v1/todo/create", newTodoItem);
+
+                todoItems = await Http.GetFromJsonAsync<List<TodoItem>>("/api/v1/todo/get") ?? new List<TodoItem>();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.ToString());
+            }
+        }
+    }
+
+    private async Task DeleteTodo(int id)
+    {
+        try
+        {
+            await Http.DeleteAsync($"/api/v1/todo/delete/{id}");
+
+            todoItems = await Http.GetFromJsonAsync<List<TodoItem>>("/api/v1/todo/get") ?? new List<TodoItem>();
+        } 
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.ToString());
+        }
+    }
+
+    private async Task UpdateTodo(TodoItem todoItem, ChangeEventArgs e)
+    {
+        try
+            {
+                TodoItem newTodoItem = new TodoItem()
+                {
+                    Id = todoItem.Id,
+                    Title = todoItem.Title,
+                    IsCompleted = bool.Parse(e.Value.ToString())
+                };
+
+                await Http.PutAsJsonAsync("/api/v1/todo/update", newTodoItem);
+
+                todoItems = await Http.GetFromJsonAsync<List<TodoItem>>("/api/v1/todo/get") ?? new List<TodoItem>();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.ToString());
+            }
+    }
+
+}
